@@ -16,6 +16,7 @@ import CreateGame from './pages/CreateGame';
 import GameDetail from './pages/GameDetail';
 import DeclareResult from './pages/DeclareResult';
 import WithdrawalRequests from './pages/WithdrawalRequests';
+import ChangePassword from './pages/ChangePassword';
 
 function App() {
   return (
@@ -34,11 +35,12 @@ function App() {
           <Route path="/games/create" element={<ProtectedRoute><CreateGame /></ProtectedRoute>} />
           <Route path="/games/:id" element={<ProtectedRoute><GameDetail /></ProtectedRoute>} />
           
-          {/* NEW: Separate routes for Open and Close declaration */}
+          {/* Separate routes for Open and Close declaration */}
           <Route path="/games/:id/declare-open" element={<ProtectedRoute><DeclareResult type="open" /></ProtectedRoute>} />
           <Route path="/games/:id/declare-close" element={<ProtectedRoute><DeclareResult type="close" /></ProtectedRoute>} />
           
           <Route path="/withdrawal-requests" element={<ProtectedRoute><WithdrawalRequests /></ProtectedRoute>} />
+          <Route path="/change-password" element={<ProtectedRoute><ChangePassword /></ProtectedRoute>} />
 
           {/* Redirect */}
           <Route path="*" element={<Navigate to="/" replace />} />

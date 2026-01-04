@@ -1,79 +1,101 @@
-// Location: admin-panel/src/pages/CoinRequests.jsx
+// Location: admin-panel/src/pages/ChangePassword.jsx
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { adminAPI, handleAPIError } from '../utils/api';
 
-const CoinRequests = () => {
-  const [requests, setRequests] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [statusFilter, setStatusFilter] = useState('pending');
-  const [processing, setProcessing] = useState(null);
+const ChangePassword = () => {
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [formData, setFormData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+  const [errors, setErrors] = useState({});
+  const [successMessage, setSuccessMessage] = useState('');
 
-  // Reject modal
-  const [showRejectModal, setShowRejectModal] = useState(false);
-  const [rejectRequestId, setRejectRequestId] = useState(null);
-  const [rejectNote, setRejectNote] = useState('');
-
-  useEffect(() => {
-    fetchRequests();
-  }, [statusFilter]);
-
-  const fetchRequests = async () => {
-    try {
-      setLoading(true);
-      const response = await adminAPI.getCoinRequests(statusFilter);
-      if (response.data.success) {
-        setRequests(response.data.data.requests);
-      }
-    } catch (err) {
-      setError(handleAPIError(err));
-    } finally {
-      setLoading(false);
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+    // Clear error for this field
+    if (errors[name]) {
+      setErrors(prev => ({
+        ...prev,
+        [name]: ''
+      }));
     }
   };
 
-  const handleApprove = async (requestId) => {
-    if (!window.confirm('Are you sure you want to approve this request?')) {
+  const validateForm = () => {
+    const newErrors = {};
+
+    if (!formData.currentPassword) {
+      newErrors.currentPassword = 'Current password is required';
+    }
+
+    if (!formData.newPassword) {
+      newErrors.newPassword = 'New password is required';
+    } else if (formData.newPassword.length < 6) {
+      newErrors.newPassword = 'Password must be at least 6 characters';
+    }
+
+    if (!formData.confirmPassword) {
+      newErrors.confirmPassword = 'Please confirm your password';
+    } else if (formData.newPassword !== formData.confirmPassword) {
+      newErrors.confirmPassword = 'Passwords do not match';
+    }
+
+    if (formData.currentPassword && formData.newPassword && 
+        formData.currentPassword === formData.newPassword) {
+      newErrors.newPassword = 'New password must be different from current password';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setSuccessMessage('');
+
+    if (!validateForm()) {
       return;
     }
 
-    setProcessing(requestId);
+    setLoading(true);
+
     try {
-      const response = await adminAPI.approveCoinRequest(requestId);
+      const response = await adminAPI.changePassword({
+        currentPassword: formData.currentPassword,
+        newPassword: formData.newPassword
+      });
+
       if (response.data.success) {
-        alert('Request approved successfully');
-        fetchRequests(); // Refresh list
+        setSuccessMessage('Password changed successfully!');
+        setFormData({
+          currentPassword: '',
+          newPassword: '',
+          confirmPassword: ''
+        });
+
+        // Redirect to dashboard after 2 seconds
+        setTimeout(() => {
+          navigate('/');
+        }, 2000);
       }
     } catch (err) {
-      alert(handleAPIError(err));
+      setErrors({
+        submit: handleAPIError(err)
+      });
     } finally {
-      setProcessing(null);
-    }
-  };
-
-  const openRejectModal = (requestId) => {
-    setRejectRequestId(requestId);
-    setShowRejectModal(true);
-  };
-
-  const handleReject = async (e) => {
-    e.preventDefault();
-
-    setProcessing(rejectRequestId);
-    try {
-      const response = await adminAPI.rejectCoinRequest(rejectRequestId, rejectNote);
-      if (response.data.success) {
-        alert('Request rejected successfully');
-        setShowRejectModal(false);
-        setRejectNote('');
-        setRejectRequestId(null);
-        fetchRequests(); // Refresh list
-      }
-    } catch (err) {
-      alert(handleAPIError(err));
-    } finally {
-      setProcessing(null);
+      setLoading(false);
     }
   };
 
@@ -84,278 +106,206 @@ const CoinRequests = () => {
         <div className="flex items-center space-x-3">
           <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-yellow-500 rounded-xl flex items-center justify-center shadow-lg">
             <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
             </svg>
           </div>
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-orange-600 to-yellow-600 bg-clip-text text-transparent">
-              Coin Requests
+              Change Password
             </h1>
-            <p className="text-gray-600 mt-1 text-sm sm:text-base">Manage user coin addition requests</p>
+            <p className="text-gray-600 mt-1 text-sm sm:text-base">Update your account password</p>
           </div>
         </div>
       </div>
 
-      {/* Status Filter */}
-      <div className="bg-white rounded-2xl p-4 sm:p-6 border border-orange-100 shadow-sm">
-        <div className="flex flex-col sm:flex-row sm:items-center space-y-3 sm:space-y-0 sm:space-x-4">
-          <span className="text-sm font-semibold text-gray-700">Filter by status:</span>
-          <div className="flex flex-wrap gap-2">
-            {['pending', 'approved', 'rejected'].map((status) => (
-              <button
-                key={status}
-                onClick={() => setStatusFilter(status)}
-                className={`px-4 py-2 rounded-xl font-medium text-sm transition-all duration-200 ${
-                  statusFilter === status
-                    ? 'bg-gradient-to-r from-orange-500 to-yellow-500 text-white shadow-lg shadow-orange-500/30'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:shadow-md'
-                }`}
-              >
-                {status.charAt(0).toUpperCase() + status.slice(1)}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Error Message */}
-      {error && (
-        <div className="bg-red-50 border-l-4 border-red-500 rounded-xl p-4 shadow-sm">
-          <div className="flex items-center">
-            <svg className="w-5 h-5 text-red-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+      <div className="max-w-2xl mx-auto">
+        {/* Success Message */}
+        {successMessage && (
+          <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl flex items-center space-x-3 shadow-sm">
+            <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            <p className="text-red-700 font-medium">{error}</p>
+            <span className="text-green-700 font-medium">{successMessage}</span>
           </div>
-        </div>
-      )}
-
-      {/* Requests Table */}
-      <div className="bg-white rounded-2xl border border-orange-100 shadow-lg overflow-hidden">
-        {loading ? (
-          <div className="flex flex-col items-center justify-center py-16">
-            <div className="relative">
-              <div className="w-16 h-16 border-4 border-orange-200 border-t-orange-500 rounded-full animate-spin"></div>
-              <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
-                <div className="w-8 h-8 bg-gradient-to-br from-orange-400 to-yellow-500 rounded-full animate-pulse"></div>
-              </div>
-            </div>
-            <p className="mt-4 text-gray-600 font-medium">Loading requests...</p>
-          </div>
-        ) : requests.length === 0 ? (
-          <div className="text-center py-16">
-            <div className="w-20 h-20 mx-auto bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center mb-4">
-              <svg className="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <p className="text-lg font-semibold text-gray-700">No {statusFilter} requests found</p>
-            <p className="text-sm text-gray-500 mt-2">Check back later or try a different filter</p>
-          </div>
-        ) : (
-          <>
-            {/* Desktop Table View */}
-            <div className="hidden lg:block overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gradient-to-r from-orange-50 to-yellow-50">
-                  <tr>
-                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">User</th>
-                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Phone</th>
-                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Amount</th>
-                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Current Balance</th>
-                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Requested On</th>
-                    {statusFilter === 'pending' && <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Actions</th>}
-                    {statusFilter !== 'pending' && <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Processed On</th>}
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {requests.map((request) => (
-                    <tr key={request._id} className="hover:bg-orange-50/50 transition-colors duration-150">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center mr-3">
-                            <span className="text-white font-bold text-sm">
-                              {request.user_id?.name?.charAt(0).toUpperCase()}
-                            </span>
-                          </div>
-                          <span className="font-semibold text-gray-900">{request.user_id?.name}</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-gray-700">{request.user_id?.phone}</td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="font-bold text-orange-600 text-lg">
-                          ₹{request.amount?.toLocaleString()}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="text-gray-600 font-medium">
-                          ₹{request.user_id?.balance?.toLocaleString()}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                          request.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                          request.status === 'approved' ? 'bg-green-100 text-green-800' :
-                          'bg-red-100 text-red-800'
-                        }`}>
-                          {request.status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-gray-500 text-sm">
-                        {new Date(request.created_at).toLocaleString()}
-                      </td>
-                      {statusFilter === 'pending' ? (
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center space-x-3">
-                            <button
-                              onClick={() => handleApprove(request._id)}
-                              disabled={processing === request._id}
-                              className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm hover:shadow-md"
-                            >
-                              {processing === request._id ? 'Processing...' : 'Approve'}
-                            </button>
-                            <button
-                              onClick={() => openRejectModal(request._id)}
-                              disabled={processing === request._id}
-                              className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm hover:shadow-md"
-                            >
-                              Reject
-                            </button>
-                          </div>
-                        </td>
-                      ) : (
-                        <td className="px-6 py-4 whitespace-nowrap text-gray-500 text-sm">
-                          {request.processed_at ? new Date(request.processed_at).toLocaleString() : '-'}
-                        </td>
-                      )}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Mobile Card View */}
-            <div className="lg:hidden divide-y divide-gray-200">
-              {requests.map((request) => (
-                <div key={request._id} className="p-4 hover:bg-orange-50/50 transition-colors duration-150">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center">
-                        <span className="text-white font-bold">
-                          {request.user_id?.name?.charAt(0).toUpperCase()}
-                        </span>
-                      </div>
-                      <div>
-                        <p className="font-semibold text-gray-900">{request.user_id?.name}</p>
-                        <p className="text-sm text-gray-600">{request.user_id?.phone}</p>
-                      </div>
-                    </div>
-                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                      request.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                      request.status === 'approved' ? 'bg-green-100 text-green-800' :
-                      'bg-red-100 text-red-800'
-                    }`}>
-                      {request.status}
-                    </span>
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-3 mb-3">
-                    <div className="bg-orange-50 rounded-lg p-3">
-                      <p className="text-xs text-gray-600 mb-1">Request Amount</p>
-                      <p className="font-bold text-orange-600 text-lg">₹{request.amount?.toLocaleString()}</p>
-                    </div>
-                    <div className="bg-blue-50 rounded-lg p-3">
-                      <p className="text-xs text-gray-600 mb-1">Current Balance</p>
-                      <p className="font-semibold text-blue-600">₹{request.user_id?.balance?.toLocaleString()}</p>
-                    </div>
-                  </div>
-
-                  <div className="text-xs text-gray-500 mb-3">
-                    <p>Requested: {new Date(request.created_at).toLocaleString()}</p>
-                    {request.processed_at && (
-                      <p>Processed: {new Date(request.processed_at).toLocaleString()}</p>
-                    )}
-                  </div>
-
-                  {statusFilter === 'pending' && (
-                    <div className="flex space-x-2">
-                      <button
-                        onClick={() => handleApprove(request._id)}
-                        disabled={processing === request._id}
-                        className="flex-1 px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
-                      >
-                        {processing === request._id ? 'Processing...' : 'Approve'}
-                      </button>
-                      <button
-                        onClick={() => openRejectModal(request._id)}
-                        disabled={processing === request._id}
-                        className="flex-1 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
-                      >
-                        Reject
-                      </button>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </>
         )}
-      </div>
 
-      {/* Reject Modal */}
-      {showRejectModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl transform transition-all">
-            <div className="flex items-center space-x-3 mb-6">
-              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
-                <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </div>
-              <h3 className="text-xl font-bold text-gray-900">Reject Coin Request</h3>
-            </div>
-            
-            <form onSubmit={handleReject}>
-              <div className="mb-6">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Reason for rejection
-                </label>
-                <textarea
-                  value={rejectNote}
-                  onChange={(e) => setRejectNote(e.target.value)}
-                  placeholder="Enter reason (optional)"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200 resize-none"
-                  rows="4"
-                ></textarea>
-              </div>
-              
-              <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
-                <button
-                  type="submit"
-                  disabled={processing}
-                  className="flex-1 px-6 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl"
-                >
-                  {processing ? 'Rejecting...' : 'Reject Request'}
-                </button>
+        {/* Error Message */}
+        {errors.submit && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl flex items-center space-x-3 shadow-sm">
+            <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span className="text-red-700">{errors.submit}</span>
+          </div>
+        )}
+
+        {/* Form Card */}
+        <div className="bg-white rounded-2xl shadow-lg border border-orange-100">
+          <form onSubmit={handleSubmit} className="p-6 sm:p-8 space-y-6">
+            {/* Current Password */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Current Password
+              </label>
+              <div className="relative">
+                <input
+                  type={showCurrentPassword ? 'text' : 'password'}
+                  name="currentPassword"
+                  value={formData.currentPassword}
+                  onChange={handleChange}
+                  className={`w-full px-4 py-3 pr-12 border rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all ${
+                    errors.currentPassword ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder="Enter current password"
+                />
                 <button
                   type="button"
-                  onClick={() => {
-                    setShowRejectModal(false);
-                    setRejectNote('');
-                    setRejectRequestId(null);
-                  }}
-                  className="flex-1 px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-xl font-semibold transition-all duration-200"
+                  onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors"
                 >
-                  Cancel
+                  {showCurrentPassword ? (
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                  ) : (
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                    </svg>
+                  )}
                 </button>
               </div>
-            </form>
+              {errors.currentPassword && (
+                <p className="mt-1 text-sm text-red-600">{errors.currentPassword}</p>
+              )}
+            </div>
+
+            {/* New Password */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                New Password
+              </label>
+              <div className="relative">
+                <input
+                  type={showNewPassword ? 'text' : 'password'}
+                  name="newPassword"
+                  value={formData.newPassword}
+                  onChange={handleChange}
+                  className={`w-full px-4 py-3 pr-12 border rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all ${
+                    errors.newPassword ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder="Enter new password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowNewPassword(!showNewPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors"
+                >
+                  {showNewPassword ? (
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                  ) : (
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                    </svg>
+                  )}
+                </button>
+              </div>
+              {errors.newPassword && (
+                <p className="mt-1 text-sm text-red-600">{errors.newPassword}</p>
+              )}
+              <p className="mt-1 text-sm text-gray-500">Must be at least 6 characters</p>
+            </div>
+
+            {/* Confirm Password */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Confirm New Password
+              </label>
+              <div className="relative">
+                <input
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  name="confirmPassword"
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                  className={`w-full px-4 py-3 pr-12 border rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all ${
+                    errors.confirmPassword ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder="Confirm new password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors"
+                >
+                  {showConfirmPassword ? (
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                  ) : (
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                    </svg>
+                  )}
+                </button>
+              </div>
+              {errors.confirmPassword && (
+                <p className="mt-1 text-sm text-red-600">{errors.confirmPassword}</p>
+              )}
+            </div>
+
+            {/* Buttons */}
+            <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4 pt-4">
+              <button
+                type="submit"
+                disabled={loading}
+                className="flex-1 bg-gradient-to-r from-orange-500 to-yellow-500 text-white py-3 rounded-xl font-semibold hover:from-orange-600 hover:to-yellow-600 transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? (
+                  <span className="flex items-center justify-center">
+                    <svg className="animate-spin h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Changing Password...
+                  </span>
+                ) : (
+                  'Change Password'
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate('/')}
+                className="flex-1 bg-gray-200 text-gray-700 py-3 rounded-xl font-semibold hover:bg-gray-300 transition-all duration-200"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+
+        {/* Security Tips */}
+        <div className="mt-6 bg-blue-50 border border-blue-200 rounded-xl p-4 shadow-sm">
+          <div className="flex items-start space-x-3">
+            <svg className="w-5 h-5 text-blue-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <div>
+              <h3 className="font-semibold text-blue-900 mb-1">Security Tips</h3>
+              <ul className="text-sm text-blue-800 space-y-1">
+                <li>• Use a strong password with a mix of letters, numbers, and symbols</li>
+                <li>• Don't reuse passwords from other accounts</li>
+                <li>• Change your password regularly</li>
+              </ul>
+            </div>
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
 };
 
-export default CoinRequests;
+export default ChangePassword;
